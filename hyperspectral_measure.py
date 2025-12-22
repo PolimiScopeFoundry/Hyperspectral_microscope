@@ -1,8 +1,8 @@
 # -*- coding: utf-8 -*-
 """
-Created on wed Jun 16 01:33:32 2021
+Created on 22 Dec 2025
 
-@authors: Andrea Bassi, Martina Riva, Antonio Composto. Politecnico di Milano
+@authors: Martina Riva. Politecnico di Milano
 """
 from ScopeFoundry import Measurement
 from ScopeFoundry.helper_funcs import sibling_path, load_qt_ui_file
@@ -47,8 +47,8 @@ class hyperMeasure(Measurement):
         self.settings.New('posx', dtype=int, initial=800)       
         self.settings.New('posy', dtype=int, initial=600)
 
-        self.image_gen = self.app.hardware['HamamatsuHardware']
-        self.stage = self.app.hardware['PI_CG_HW']
+        self.image_gen = self.app.hardware['PVcamhw']
+        self.stage = self.app.hardware['IKO_HW']
         self.stage.settings['velocity'] = 5 
 
         
@@ -190,50 +190,51 @@ class hyperMeasure(Measurement):
                 self.stage.read_from_hardware()
 
         elif self.settings['camera_trigger'] == 'external':
-                self.image_gen.settings['trigger_source'] = 'external'
-                self.image_gen.settings['acquisition_mode'] = 'run_till_abort'
-                self.image_gen.settings['number_frames'] = step_num+10; #expected step_num but not always true, 10 arbitrary
-                #necessary to avoid warning about buffer
-                #step_num+1 because initial position is included
-                self.image_gen.read_from_hardware()
-                read_start_pos = self.stage.motor.get_position() #read the starting position
-                print('Scan starting position:', read_start_pos)
-                target_pos = starting_pos + step_num * step # final position
-                self.set_motor_velocity() # set an appropriate velocity for the scan
-                print('Debugging: Motor velocity:', self.stage.motor.get_velocity(), 'mm/s')
+            print('External trigger measurement not implemented yet')
+                # self.image_gen.settings['trigger_source'] = 'external'
+                # self.image_gen.settings['acquisition_mode'] = 'run_till_abort'
+                # self.image_gen.settings['number_frames'] = step_num+10; #expected step_num but not always true, 10 arbitrary
+                # #necessary to avoid warning about buffer
+                # #step_num+1 because initial position is included
+                # self.image_gen.read_from_hardware()
+                # read_start_pos = self.stage.motor.get_position() #read the starting position
+                # print('Scan starting position:', read_start_pos)
+                # target_pos = starting_pos + step_num * step # final position
+                # self.set_motor_velocity() # set an appropriate velocity for the scan
+                # print('Debugging: Motor velocity:', self.stage.motor.get_velocity(), 'mm/s')
 
-                #Acquisition with trigger
-                self.image_gen.hamamatsu.startAcquisition()
+                # #Acquisition with trigger
+                # self.image_gen.hamamatsu.startAcquisition()
 
-                start_time=time.time()
-                self.stage.motor.trigger(step, target_pos)
-                self.stage.motor.wait_on_target()
-                end_time = time.time()
-                print('Acquisition time:', end_time-start_time, 's')
-                read_final_pos = self.stage.motor.get_position() #read the final position
-                print('Final position:', read_final_pos)
+                # start_time=time.time()
+                # self.stage.motor.trigger(step, target_pos)
+                # self.stage.motor.wait_on_target()
+                # end_time = time.time()
+                # print('Acquisition time:', end_time-start_time, 's')
+                # read_final_pos = self.stage.motor.get_position() #read the final position
+                # print('Final position:', read_final_pos)
                 
-                self.image_gen.hamamatsu.stopAcquisitionNotReleasing() #stop acquisition without releasing the buffer
-                [frames, dims] = self.image_gen.hamamatsu.getFrames() 
-                print('Number of acquired frames ',len(frames))
-                #self.step_num_eff=len(frames) #effective number of acquired frames is different from step_num (one more)
-                #Create the h5 file and save the data
-                if self.settings['save_h5']:
-                    self.create_h5_file()
-                    for frame_idx in range(0, len(frames)): #len(frames)=step_num+1: using this range I loos the last frame 
-                        self.np_data=frames[frame_idx].getData()
-                        self.image=np.reshape(self.np_data, (dims[0], dims[1]))
-                        self.image_h5[frame_idx,:,:] = self.image
-                        self.frame_index = frame_idx
-                    vettore_posizioni = np.linspace(read_start_pos, read_final_pos, len(frames))*1000 # convert to um
-                    self.positions_h5[0:len(frames)] = vettore_posizioni
-                    print('positions_h5: ', self.positions_h5)
-                    self.h5file.flush()
+                # self.image_gen.hamamatsu.stopAcquisitionNotReleasing() #stop acquisition without releasing the buffer
+                # [frames, dims] = self.image_gen.hamamatsu.getFrames() 
+                # print('Number of acquired frames ',len(frames))
+                # #self.step_num_eff=len(frames) #effective number of acquired frames is different from step_num (one more)
+                # #Create the h5 file and save the data
+                # if self.settings['save_h5']:
+                #     self.create_h5_file()
+                #     for frame_idx in range(0, len(frames)): #len(frames)=step_num+1: using this range I loos the last frame 
+                #         self.np_data=frames[frame_idx].getData()
+                #         self.image=np.reshape(self.np_data, (dims[0], dims[1]))
+                #         self.image_h5[frame_idx,:,:] = self.image
+                #         self.frame_index = frame_idx
+                #     vettore_posizioni = np.linspace(read_start_pos, read_final_pos, len(frames))*1000 # convert to um
+                #     self.positions_h5[0:len(frames)] = vettore_posizioni
+                #     print('positions_h5: ', self.positions_h5)
+                #     self.h5file.flush()
                 
-                self.image_gen.settings['trigger_source'] = 'internal'
-                self.stage.settings['velocity'] = 5
-                self.image_gen.read_from_hardware()
-                self.stage.read_from_hardware()
+                # self.image_gen.settings['trigger_source'] = 'internal'
+                # self.stage.settings['velocity'] = 5
+                # self.image_gen.read_from_hardware()
+                # self.stage.read_from_hardware()
         else:
             raise ValueError('Measurement trigger is not set on internal nor external')
 
@@ -251,22 +252,19 @@ class hyperMeasure(Measurement):
             
             self.image_gen.read_from_hardware()
     
-            self.image_gen.settings['acquisition_mode'] = 'run_till_abort'
-            self.image_gen.hamamatsu.startAcquisition()
+            self.image_gen.settings['acquisition_mode'] = 'Continuous'
+            self.image_gen.cam.acq_start()
             
             # continuously get the last frame and put it in self.image, in order to 
             # show it via self.update_display()
             
             while not self.interrupt_measurement_called:
                 
-                [frame, dims] = self.image_gen.hamamatsu.getLastFrame()        
-                self.np_data = frame.getData()
-                self.img = np.reshape(self.np_data,(self.eff_subarrayv, self.eff_subarrayh))
-                
+                self.img = self.image_gen.cam.get_nparray()['pixel_data'] 
                 # If measurement is called, stop the acquisition, call self.measure
                 # and get out of run()
                 if self.settings['save_h5']:
-                    self.image_gen.hamamatsu.stopAcquisition()
+                    self.image_gen.cam.acq_stop()
                     self.measure()
                     break
                 
@@ -274,7 +272,7 @@ class hyperMeasure(Measurement):
                     break
             
         finally:
-            self.image_gen.hamamatsu.stopAcquisition()
+            self.image_gen.cam.acq_stop()
             if self.settings['save_h5'] and hasattr(self, 'h5file'):
                 # make sure to close the data file
                 self.h5file.close() 
@@ -299,9 +297,7 @@ class hyperMeasure(Measurement):
     def set_motor_velocity(self):
         self.stage.settings['velocity'] = self.settings['motor_velocity']
         self.stage.read_from_hardware()
-        '''
-        
-        '''
+
 
                 
     def create_saving_directory(self):
