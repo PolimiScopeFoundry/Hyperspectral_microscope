@@ -24,11 +24,11 @@ class hyper_app(BaseMicroscopeApp):
         #Add hardware components
         print("Adding Hardware Components")
 
-        add_path('IKO_ScopeFoundry') 
+        add_path('Teledyne_ScopeFoundry') 
         from CameraHW import PVcamHW
         self.add_hardware(PVcamHW(self))
         
-        add_path('PI_ScopeFoundry')
+        add_path('IKO_ScopeFoundry')
         from IKO_Hardware import IKO_HW
         self.add_hardware(IKO_HW(self, ip = "10.0.0.100", port = 701))
 

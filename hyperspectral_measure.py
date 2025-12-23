@@ -28,7 +28,7 @@ class hyperMeasure(Measurement):
         self.settings.New('start_pos', dtype=float, unit='mm', initial=2.3, spinbox_decimals=4) 
         self.settings.New('step', dtype=float, unit='um', initial=40, spinbox_decimals=2) 
         self.settings.New('step_num', dtype=int, initial=50, vmin = 1) 
-        self.settings.New('motor_velocity', dtype = float, initial=0.125, unit='mm/s', spinbox_decimals=2)
+        self.settings.New('motor_velocity', dtype = float, initial=0.125, unit='mm/s', spinbox_decimals=3)
         #self.add_operation('measure', self.measure)
         self.settings.New('camera_trigger', dtype=str, ro=0, choices = ["internal", "external"], initial = 'internal')
     
@@ -49,7 +49,7 @@ class hyperMeasure(Measurement):
 
         self.image_gen = self.app.hardware['PVcamhw']
         self.stage = self.app.hardware['IKO_HW']
-        self.stage.settings['velocity'] = 5 
+        self.stage.settings['velocity'] = 200 #set high velocity for fast movement to initial position (IKO) 
 
         
         
@@ -85,6 +85,7 @@ class hyperMeasure(Measurement):
         cmap = pg.ColorMap(pos=np.linspace(0.0, 1.0, 6), color=colors)
         self.imv.setColorMap(cmap)
         self.ui.plotLayout.addWidget(self.plot_graph)
+        self.ui.tabWidget.setCurrentIndex(0) # show the image tab by default
         self.time = []
         self.intensity = []
 
@@ -259,6 +260,45 @@ class hyperMeasure(Measurement):
             raise ValueError('Measurement trigger is not set on internal nor external')
 
             
+    def run(self):
+                    
+            try:
+                #start the camera
+                self.time = []
+                self.intensity = []
+            
+                self.frame_index = -1
+                self.eff_subarrayh = int(self.image_gen.subarrayh.val/self.image_gen.binning.val)
+                self.eff_subarrayv = int(self.image_gen.subarrayv.val/self.image_gen.binning.val)
+                
+                self.image_gen.read_from_hardware()
+        
+                self.image_gen.settings['acquisition_mode'] = 'continuous'
+                self.image_gen.cam.acq_start()
+                
+                # continuously get the last frame and put it in self.image, in order to 
+                # show it via self.update_display()
+                
+                while not self.interrupt_measurement_called:
+                    
+                    self.img = self.image_gen.cam.get_nparray()   
+                    # If measurement is called, stop the acquisition, call self.measure
+                    # and get out of run()
+                    if self.settings['save_h5']:
+                        self.image_gen.cam.acq_stop()
+                        self.measure()
+                        break
+                    
+                    if self.interrupt_measurement_called:
+                        break
+                
+            finally:
+                self.image_gen.cam.acq_stop()
+                if self.settings['save_h5'] and hasattr(self, 'h5file'):
+                    # make sure to close the data file
+                    self.h5file.close() 
+                    self.settings['save_h5'] = False
+                    
 
 
     def set_motor_velocity(self):
