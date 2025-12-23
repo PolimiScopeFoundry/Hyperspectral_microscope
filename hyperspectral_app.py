@@ -54,8 +54,8 @@ if __name__ == '__main__':
     setting_dir = os.path.join(current_dir, 'Settings', 'settings.ini')
     app.settings_load_ini(setting_dir)
 
-    for hc_name, hc in app.hardware.items():
-        hc.settings['connected'] = True    # connect all the hardwares  automatically
+    # for hc_name, hc in app.hardware.items():
+    #     hc.settings['connected'] = True    # connect all the hardwares  automatically
     
     
     sys.exit(app.exec_())

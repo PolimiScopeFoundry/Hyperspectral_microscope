@@ -30,7 +30,7 @@ class hyperMeasure(Measurement):
         self.settings.New('step_num', dtype=int, initial=50, vmin = 1) 
         self.settings.New('motor_velocity', dtype = float, initial=0.125, unit='mm/s', spinbox_decimals=3)
         #self.add_operation('measure', self.measure)
-        self.settings.New('camera_trigger', dtype=str, ro=0, choices = ["internal", "external"], initial = 'internal')
+        self.settings.New('camera_trigger', dtype=str, ro=0, choices = ["Internal", "Edge"], initial = 'Internal')
     
         
         #dummy values for initialization; they are necessary for HDF5 files visualization in ImageJ 
@@ -47,7 +47,7 @@ class hyperMeasure(Measurement):
         self.settings.New('posx', dtype=int, initial=800)       
         self.settings.New('posy', dtype=int, initial=600)
 
-        self.image_gen = self.app.hardware['PVcamhw']
+        self.image_gen = self.app.hardware['PVcamHW']
         self.stage = self.app.hardware['IKO_HW']
         self.stage.settings['velocity'] = 200 #set high velocity for fast movement to initial position (IKO) 
 
@@ -151,10 +151,10 @@ class hyperMeasure(Measurement):
     
         #Move motor to the starting position
         #velocity = self.stage.motor.get_velocity()
-        self.stage.motor.set_velocity(5) # high velocity for fast movement toward initial position
+        self.stage.motor.set_velocity(200) # high velocity for fast movement toward initial position
         # print('Debugging: Motor velocity:', self.stage.motor.get_velocity(), 'mm/s')
 
-        if self.settings['camera_trigger'] == 'internal':
+        if self.settings['camera_trigger'] == 'Internal':
             self.image_gen.settings['acquisition_mode'] = 'MultiFrame'
             self.image_gen.settings['number_frames'] = 1
 
@@ -191,7 +191,7 @@ class hyperMeasure(Measurement):
 
                 self.stage.read_from_hardware()
 
-        elif self.settings['camera_trigger'] == 'external':
+        elif self.settings['camera_trigger'] == 'Edge':
             print('External trigger measurement not implemented yet')
                 # correction = 0.05 # to compensate the delay between trigger and movement start (in mm)
                 # ch = 1
@@ -261,43 +261,48 @@ class hyperMeasure(Measurement):
 
             
     def run(self):
-                    
-            try:
-                #start the camera
-                self.time = []
-                self.intensity = []
-            
-                self.frame_index = -1
-                self.eff_subarrayh = int(self.image_gen.subarrayh.val/self.image_gen.binning.val)
-                self.eff_subarrayv = int(self.image_gen.subarrayv.val/self.image_gen.binning.val)
-                
-                self.image_gen.read_from_hardware()
+        """
+        Runs when measurement is started. Runs in a separate thread from GUI.
+        It should not update the graphical interface directly, and should only
+        focus on data acquisition.
+        """
+
+        try: 
+
+            #start the camera
+            self.time = []
+            self.intensity = []
         
-                self.image_gen.settings['acquisition_mode'] = 'continuous'
-                self.image_gen.cam.acq_start()
-                
-                # continuously get the last frame and put it in self.image, in order to 
-                # show it via self.update_display()
-                
+            self.frame_index = -1
+            self.eff_subarrayh = int(self.image_gen.subarrayh.val/self.image_gen.binning.val)
+            self.eff_subarrayv = int(self.image_gen.subarrayv.val/self.image_gen.binning.val)
+            
+            self.image_gen.read_from_hardware()
+
+            if self.image_gen.settings['acquisition_mode'] == 'Continuous':
+                """
+                If mode is Continuous, acquire frames indefinitely. No save in h5 is permormed 
+                """
+                print('Debugging: Check frame status:', self.image_gen.cam.cam.check_frame_status())
+                self.image_gen.cam.acq_start() 
                 while not self.interrupt_measurement_called:
-                    
-                    self.img = self.image_gen.cam.get_nparray()   
-                    # If measurement is called, stop the acquisition, call self.measure
-                    # and get out of run()
-                    if self.settings['save_h5']:
-                        self.image_gen.cam.acq_stop()
-                        self.measure()
-                        break
-                    
-                    if self.interrupt_measurement_called:
-                        break
-                
-            finally:
-                self.image_gen.cam.acq_stop()
-                if self.settings['save_h5'] and hasattr(self, 'h5file'):
-                    # make sure to close the data file
-                    self.h5file.close() 
-                    self.settings['save_h5'] = False
+                    print('Debugging: Check frame status:', self.image_gen.cam.cam.check_frame_status())
+                    self.img = self.image_gen.cam.get_nparray()['pixel_data'] 
+                    # if self.interrupt_measurement_called:
+                    #     break
+                    # if self.settings['save_h5']:
+                    #     self.image_gen.cam.acq_stop()
+                    #     self.measure()
+                    #     break
+
+        finally:
+        
+            self.image_gen.cam.acq_stop()
+            
+            if self.settings['save_h5'] and hasattr(self, 'h5file'):
+                # make sure to close the data file
+                self.h5file.close() 
+                self.settings['save_h5'] = False
                     
 
 
@@ -331,9 +336,9 @@ class hyperMeasure(Measurement):
         img_size = self.img.shape
         dtype=self.img.dtype
         
-        if self.settings['camera_trigger'] == 'internal':
+        if self.settings['camera_trigger'] == 'Internal':
             length = self.settings.step_num.val
-        elif self.settings['camera_trigger'] == 'external': #with trigger there is a frame more acquired
+        elif self.settings['camera_trigger'] == 'Edge': #with trigger there is a frame more acquired
             length = self.settings.step_num.val+1
         
         self.image_h5 = self.h5_group.create_dataset(name  = 't0/c0/image', 
