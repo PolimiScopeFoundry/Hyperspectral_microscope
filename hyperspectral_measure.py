@@ -144,6 +144,9 @@ class hyperMeasure(Measurement):
         step_num  = self.settings.step_num.val # number of acquired frames equals the number of motor steps
         step = self.settings.step.val /1000 # step is in um
         self.starting_pos = starting_pos = self.settings.start_pos.val
+
+        #TEST with ABSOLUTE POSITIONS
+        # motor_pos = np.linspace(starting_pos, starting_pos + step_num*step, step_num)
     
         #Move motor to the starting position
         #velocity = self.stage.motor.get_velocity()
