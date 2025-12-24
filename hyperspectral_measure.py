@@ -30,7 +30,7 @@ class hyperMeasure(Measurement):
         self.settings.New('step_num', dtype=int, initial=50, vmin = 1) 
         self.settings.New('motor_velocity', dtype = float, initial=0.125, unit='mm/s', spinbox_decimals=3)
         #self.add_operation('measure', self.measure)
-        self.settings.New('camera_trigger', dtype=str, ro=0, choices = ["Internal", "Edge"], initial = 'Internal')
+        self.settings.New('camera_trigger', dtype=str, ro=0, choices = ['Internal', 'Edge', 'Trigger First', 'Software Trigger Edge', 'Software Trigger First'], initial = 'Internal')
     
         
         #dummy values for initialization; they are necessary for HDF5 files visualization in ImageJ 
@@ -155,8 +155,8 @@ class hyperMeasure(Measurement):
         print('Debugging: Motor velocity:', self.stage.motor.get_velocity(), 'mm/s')
 
         if self.settings['camera_trigger'] == 'Internal':
-            self.image_gen.settings['acquisition_mode'] = 'MultiFrame'
-            self.image_gen.settings['number_frames'] = 1
+            self.image_gen.settings['trmode'] = 'Internal Trigger'
+            self.image_gen.settings['number_frames'] = 1 #1-frame sequence acquisition
 
             self.stage.motor.move_absolute(starting_pos)
             self.stage.motor.wait_on_target()
@@ -196,13 +196,9 @@ class hyperMeasure(Measurement):
                 # correction = 0.05 # to compensate the delay between trigger and movement start (in mm)
                 # ch = 1
                 # ch_tot = 4
-                # self.image_gen.settings['trigger_source'] = 'external'
-                # self.image_gen.settings['acquisition_mode'] = 'run_till_abort'
-                # self.image_gen.settings['number_frames'] = step_num+10; #expected step_num but not always true, 10 arbitrary
-                # #necessary to avoid warning about buffer
-                # #step_num+1 because initial position is included
+                # self.image_gen.settings['trmode'] = 'Edge Trigger'
                 # self.image_gen.read_from_hardware()
-                # target_pos = starting_pos + step_num * step # final position
+                # target_pos = starting_pos + (step_num-1) * step # final position
 
                 
                 # if starting_pos > target_pos:
@@ -213,47 +209,30 @@ class hyperMeasure(Measurement):
                 # print('Debugging: Motor velocity:', self.stage.motor.get_velocity(), 'mm/s')
 
                 # #Acquisition with trigger
-                # self.image_gen.hamamatsu.startAcquisition()
+                # self.image_gen.cam.acq_start_seq(num_frames = step_num+5) #more frames than steps to be sure to acquire all the frames: DEPENDS ON TRIGGER QUALITY!!
 
                 # start_time=time.time()
                 # print('Acquisition started')
                 # self.stage.motor.trigger(step, starting_pos, target_pos, ch, ch_tot) 
                 # self.stage.motor.move_absolute(target_pos+correction) #move a bit before the starting position
-                # #Wait until the motor reaches the target position or the measurement is interrupted: WORKING?
-                # while not self.interrupt_measurement_called and (self.stage.motor.get_position() < target_pos):
-                #     self.update_display()
-                #     print('Debugging: position:', self.stage.motor.get_position())
-                #     time.sleep(self.display_update_period)
-
-
                 # self.stage.motor.wait_on_target()
                 # end_time = time.time()
                 # print('Acquisition time:', end_time-start_time, 's')
+
+                # vettore_posizioni = np.linspace(starting_pos, target_pos, step_num)*1000 # convert to um
                 
-                # self.image_gen.hamamatsu.stopAcquisitionNotReleasing() #stop acquisition without releasing the buffer
-                # [frames, dims] = self.image_gen.hamamatsu.getFrames() 
-                # print('Number of acquired frames ',len(frames))
-                # vettore_posizioni = np.linspace(starting_pos, target_pos, len(frames))*1000 # convert to um
-                # #self.step_num_eff=len(frames) #effective number of acquired frames is different from step_num (one more)
                 # #Create the h5 file and save the data
                 # if self.settings['save_h5']:
                 #     self.create_h5_file()
-                #     for frame_idx in range(0, step_num+1): #len(frames)=step_num+1: using this range I loos the last frame 
-                #         try:
-                #             self.np_data=frames[frame_idx].getData()
-                #             self.image=np.reshape(self.np_data, (dims[1], dims[0]))
-                #             self.image_h5[frame_idx,:,:] = self.image
-                #             self.frame_index = frame_idx
-
-                #             self.positions_h5[frame_idx] = vettore_posizioni[frame_idx]
-                #         except IndexError:
-                #             print('IndexError: the number of acquired frames is lower than expected')
-                
+                #     for frame_idx in range(0, step_num+1): #len(frames)=step_num+1: using this range I loos the last frame     
+                #         self.image_h5[frame_idx,:,:] = self.image_gen.cam.get_nparray()
+                #         self.frame_index = frame_idx
+                #         self.positions_h5[frame_idx] = vettore_posizioni[frame_idx]                   
                 #     self.h5file.flush()
-                
-                # self.stage.motor.trigger_disable(ch_tot) #disable the trigger output- use gebneric axis!!!!
-                # self.image_gen.settings['trigger_source'] = 'internal'
-                # self.stage.settings['velocity'] = 5 #high velocity for fast movement 
+                # self.image_gen.cam.acq_stop()
+                # self.stage.motor.trigger_disable(ch_tot)
+                # self.image_gen.settings['trmode'] = 'Internal Trigger'
+                # self.stage.settings['velocity'] = 800 #high velocity for fast movement 
                 # self.image_gen.read_from_hardware()
                 # self.stage.read_from_hardware()
         else:
@@ -277,17 +256,13 @@ class hyperMeasure(Measurement):
  
             self.image_gen.read_from_hardware()
 
-            if self.image_gen.settings['acquisition_mode'] == 'Continuous':
-                """
-                If mode is Continuous, acquire frames indefinitely. No save in h5 is permormed 
-                """
+            print('Debugging: Check frame status:', self.image_gen.cam.cam.check_frame_status())
+            self.image_gen.cam.acq_start() 
+            while not self.interrupt_measurement_called:
                 print('Debugging: Check frame status:', self.image_gen.cam.cam.check_frame_status())
-                self.image_gen.cam.acq_start() 
-                while not self.interrupt_measurement_called:
-                    print('Debugging: Check frame status:', self.image_gen.cam.cam.check_frame_status())
-                    self.img = self.image_gen.cam.get_nparray()
-                    if self.interrupt_measurement_called:
-                        break
+                self.img = self.image_gen.cam.get_nparray()
+                if self.interrupt_measurement_called:
+                    break
 
 
         finally:
@@ -302,9 +277,32 @@ class hyperMeasure(Measurement):
 
 
     def set_motor_velocity(self):
+        # %Version 1: user sets the motor velocity manually
         self.stage.settings['velocity'] = self.settings['motor_velocity']
         self.stage.read_from_hardware()
 
+        # %Version 2: automatic calculation of the motor velocity with maximum frame rate according to Hamamatsu manual
+        # %https://www.hamamatsu.com/eu/en/product/cameras/cmos-cameras/C11440-42U40.html
+        # DA RICALCOLARE PER RETIGA!!!
+
+        # V = self.image_gen.subarrayv.val # number of effective vertcal lines (number of horizontal does not contribute)
+        # H = 32.4812*10**(-6) 
+        # Exp = self.image_gen.settings['exposure_time'] # in s
+        # frame_rate = 1/(V/2*H+Exp+10*H) # maximum frame rate for external trigger
+        # print('Debugging: Maximum frame rate for ROI (',self.image_gen.subarrayv.val, self.image_gen.subarrayh.val, ') and acquisition time', Exp, 'is',  frame_rate, 'Hz')
+
+        # self.stage.settings['velocity']=self.settings['step']*10**(-3)/(4*Exp) # in mm/s
+        # print('Debugging: Chosen motor velocity:', self.stage.settings['velocity'], 'mm/s')
+        # print('Debugging: required frame rate:', 1/(self.settings['step']*10**(-3)/self.stage.settings['velocity']), 'Hz')
+
+        # if 1/(self.settings['step']*10**(-3)/self.stage.settings['velocity']) > 0.85*frame_rate: # empirical threshold 
+        #     print('Warning: the selected motor
+        #  velocity is too high for the current camera settings')
+        #     print('Maximum motor velocity for current camera settings is ', self.settings['step']*10**(-3)*frame_rate, 'mm/s')
+        #     self.stage.settings['velocity'] = 0.75*self.settings['step']*10**(-3)*frame_rate #empirical threshold
+            
+        # self.stage.read_from_hardware()
+           
 
                 
     def create_saving_directory(self):
