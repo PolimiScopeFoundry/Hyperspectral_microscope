@@ -151,8 +151,8 @@ class hyperMeasure(Measurement):
     
         #Move motor to the starting position
         #velocity = self.stage.motor.get_velocity()
-        self.stage.motor.set_velocity(200) # high velocity for fast movement toward initial position
-        # print('Debugging: Motor velocity:', self.stage.motor.get_velocity(), 'mm/s')
+        self.stage.motor.set_velocity(800) # high velocity for fast movement toward initial position
+        print('Debugging: Motor velocity:', self.stage.motor.get_velocity(), 'mm/s')
 
         if self.settings['camera_trigger'] == 'Internal':
             self.image_gen.settings['acquisition_mode'] = 'MultiFrame'
@@ -274,9 +274,7 @@ class hyperMeasure(Measurement):
             self.intensity = []
         
             self.frame_index = -1
-            self.eff_subarrayh = int(self.image_gen.subarrayh.val/self.image_gen.binning.val)
-            self.eff_subarrayv = int(self.image_gen.subarrayv.val/self.image_gen.binning.val)
-            
+ 
             self.image_gen.read_from_hardware()
 
             if self.image_gen.settings['acquisition_mode'] == 'Continuous':
@@ -287,13 +285,10 @@ class hyperMeasure(Measurement):
                 self.image_gen.cam.acq_start() 
                 while not self.interrupt_measurement_called:
                     print('Debugging: Check frame status:', self.image_gen.cam.cam.check_frame_status())
-                    self.img = self.image_gen.cam.get_nparray()['pixel_data'] 
-                    # if self.interrupt_measurement_called:
-                    #     break
-                    # if self.settings['save_h5']:
-                    #     self.image_gen.cam.acq_stop()
-                    #     self.measure()
-                    #     break
+                    self.img = self.image_gen.cam.get_nparray()
+                    if self.interrupt_measurement_called:
+                        break
+
 
         finally:
         
