@@ -99,7 +99,7 @@ class hyperMeasure(Measurement):
         """
         
         self.stage.read_from_hardware()
-        self.image_gen.read_from_hardware()
+        # self.image_gen.read_from_hardware()
         
         self.display_update_period = self.settings['refresh_period'] 
        
@@ -134,7 +134,7 @@ class hyperMeasure(Measurement):
                 self.plot_graph.plot(self.time, self.intensity, pen='r')
                 #self.plot_graph.setData(np.array(self.time),np.array(self.intensity))
                 
-            
+      
             
     def measure(self):
         self.plot_graph.clear()
@@ -146,11 +146,6 @@ class hyperMeasure(Measurement):
         step = self.settings.step.val /1000 # step is in um
         self.starting_pos = starting_pos = self.settings.start_pos.val
 
-        #TEST with ABSOLUTE POSITIONS
-        # motor_pos = np.linspace(starting_pos, starting_pos + step_num*step, step_num)
-    
-        #Move motor to the starting position
-        #velocity = self.stage.motor.get_velocity()
         self.stage.motor.set_velocity(800) # high velocity for fast movement toward initial position
         print('Debugging: Motor velocity:', self.stage.motor.get_velocity(), 'mm/s')
 
@@ -245,6 +240,7 @@ class hyperMeasure(Measurement):
         It should not update the graphical interface directly, and should only
         focus on data acquisition.
         """
+        self.image_gen.read_from_hardware()
 
         try: 
 
@@ -254,12 +250,12 @@ class hyperMeasure(Measurement):
         
             self.frame_index = -1
  
-            self.image_gen.read_from_hardware()
-
-            print('Debugging: Check frame status:', self.image_gen.cam.cam.check_frame_status())
+            self.image_gen.settings['acquisition_mode'] = 'Continuous'
+            self.image_gen.cam.acq_start() 
+            # print('Debugging: Check frame status:', self.image_gen.cam.cam.check_frame_status())
             self.image_gen.cam.acq_start() 
             while not self.interrupt_measurement_called:
-                print('Debugging: Check frame status:', self.image_gen.cam.cam.check_frame_status())
+                # print('Debugging: Check frame status:', self.image_gen.cam.cam.check_frame_status())
                 self.img = self.image_gen.cam.get_nparray()
                 if self.interrupt_measurement_called:
                     break
