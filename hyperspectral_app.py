@@ -27,24 +27,16 @@ class hyper_app(BaseMicroscopeApp):
         add_path('Teledyne_ScopeFoundry') 
         from CameraHW import PVcamHW
         self.add_hardware(PVcamHW(self))
-        
-        add_path('IKO_ScopeFoundry')
-        from IKO_Hardware import IKO_HW
-        self.add_hardware(IKO_HW(self, ip = "10.0.0.100", port = 701))
-        
-        from hyperspectral_measure import hyperMeasure
-        self.add_measurement(hyperMeasure(self))
 
-        # -------------When using PI stage instead of IKO stage, uncomment the following lines:-------------
-        # add_path('PI_ScopeFoundry')
-        # from PI_hardware import PI_HW
-        # self.add_hardware(PI_HW(self, serial='0185500006',encoder='VC'))
+        add_path('PI_ScopeFoundry')
+        from PI_hardware import PI_HW
+        self.add_hardware(PI_HW(self, serial='0185500006',encoder='VC'))
+        # encoder = 'VC' for models that don't support the 'defining home' (DFH) and "going home" (GOH) functions. 
         
-        # # Add measurement components
-        # print("Create Measurement objects")
-        # from hyperspectral_measure_test import hyperMeasure
-        # self.add_measurement(hyperMeasure(self))
-        #----------------------------------------------------------------------------------------------------
+        # Add measurement components
+        print("Create Measurement objects")
+        from hyperspectral_measure_test import hyperMeasure
+        self.add_measurement(hyperMeasure(self))
 
         #For ScopeFoundry release 2.0.2 comment these lines:
         #self.ui.show()
