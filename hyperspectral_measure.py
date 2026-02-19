@@ -11,12 +11,6 @@ import pyqtgraph as pg
 import numpy as np
 import os, time
 
-'''
-REMEMBER TO CHANGE also hyperspectral_app by adding the measurement component fo PI
- add_path('PI_ScopeFoundry')
-        from PI_hardware import PI_HW
-        self.add_hardware(PI_HW(self, serial='0185500006')) %CHANGE SERIAL NUMBER!
-'''
 
 class hyperMeasure(Measurement):
     
