@@ -35,17 +35,6 @@ class hyper_app(BaseMicroscopeApp):
         from hyperspectral_measure import hyperMeasure
         self.add_measurement(hyperMeasure(self))
 
-        # -------------When using PI stage instead of IKO stage, uncomment the following lines:-------------
-        # add_path('PI_ScopeFoundry')
-        # from PI_hardware import PI_HW
-        # self.add_hardware(PI_HW(self, serial='0185500006',encoder='VC'))
-        
-        # # Add measurement components
-        # print("Create Measurement objects")
-        # from hyperspectral_measure_test import hyperMeasure
-        # self.add_measurement(hyperMeasure(self))
-        #----------------------------------------------------------------------------------------------------
-
         #For ScopeFoundry release 2.0.2 comment these lines:
         #self.ui.show()
         #self.ui.activateWindow()
