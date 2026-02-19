@@ -1,8 +1,8 @@
 # -*- coding: utf-8 -*-
 """
-Created on 22 Dec 2025
+Created on wed Jun 16 01:33:32 2021
 
-@authors: Martina Riva. Politecnico di Milano
+@authors: Andrea Bassi, Martina Riva. Politecnico di Milano
 """
 from ScopeFoundry import BaseMicroscopeApp
 
@@ -14,7 +14,6 @@ def add_path(path):
     sys.path.append(os.path.abspath(os.path.join(dirname(dirname(__file__)),path)))
 
 
-
 class hyper_app(BaseMicroscopeApp):
     
     name = 'hyper_app'
@@ -24,18 +23,17 @@ class hyper_app(BaseMicroscopeApp):
         #Add hardware components
         print("Adding Hardware Components")
 
-        add_path('Teledyne_ScopeFoundry') 
-        from CameraHW import PVcamHW
-        self.add_hardware(PVcamHW(self))
-
+        add_path('QImaging_ScopeFoundry') 
+        from camera_hw import QImagingHW
+        self.add_hardware(QImagingHW(self))
+          
         add_path('PI_ScopeFoundry')
         from PI_hardware import PI_HW
-        self.add_hardware(PI_HW(self, serial='0185500006',encoder='VC'))
-        # encoder = 'VC' for models that don't support the 'defining home' (DFH) and "going home" (GOH) functions. 
-        
+        self.add_hardware(PI_HW(self, serial='0024550348', encoder='VC'))
+     
         # Add measurement components
         print("Create Measurement objects")
-        from hyperspectral_measure_test import hyperMeasure
+        from hyperspectral_measure import hyperMeasure
         self.add_measurement(hyperMeasure(self))
 
         #For ScopeFoundry release 2.0.2 comment these lines:
@@ -43,15 +41,18 @@ class hyper_app(BaseMicroscopeApp):
         #self.ui.activateWindow()
 
 if __name__ == '__main__':
-    
+
     import sys
     import os
-
-    app = hyper_app(sys.argv)
- 
-
-    # for hc_name, hc in app.hardware.items():
-    #     hc.settings['connected'] = True    # connect all the hardwares  automatically
     
+    app = hyper_app(sys.argv)
+    
+    # Load settings from ini file in Settings, within the same folder as this script
+    current_dir = os.path.dirname(os.path.abspath(__file__))
+    setting_dir = os.path.join(current_dir, 'Settings', 'settings.ini')
+    app.settings_load_ini(setting_dir)
+
+    for hc_name, hc in app.hardware.items():
+        hc.settings['connected'] = True    # connect all the hardwares  automatically
     
     sys.exit(app.exec_())
