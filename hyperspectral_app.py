@@ -35,7 +35,7 @@ class hyper_app(BaseMicroscopeApp):
         
         # Add measurement components
         print("Create Measurement objects")
-        from hyperspectral_measure_test import hyperMeasure
+        from hyperspectral_measure import hyperMeasure
         self.add_measurement(hyperMeasure(self))
 
         #For ScopeFoundry release 2.0.2 comment these lines:
