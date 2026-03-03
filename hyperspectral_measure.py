@@ -294,28 +294,42 @@ class hyperMeasure(Measurement):
         # %Version 1: user sets the motor velocity manually
         self.stage.settings['velocity'] = self.settings['motor_velocity']
         self.stage.read_from_hardware()
+        W = self.image_gen.cam.roi[2] #width of the ROI
+        H = self.image_gen.cam.roi[3] #height of the ROI
+        Exp = self.image_gen.settings['exposure_time']*10**(-3) # in s
 
-        # %Version 2: automatic calculation of the motor velocity with maximum frame rate according to Hamamatsu manual
-        # %https://www.hamamatsu.com/eu/en/product/cameras/cmos-cameras/C11440-42U40.html
-        # DA RICALCOLARE PER RETIGA!!!
+        # %Automatic calculation of the motor velocity with maximum frame rate
+        if W<=3200 and W>2900:
+            a = 1.029e+05
+            b = -35.78
+            c = -4.887
 
-        # V = self.image_gen.subarrayv.val # number of effective vertcal lines (number of horizontal does not contribute)
-        # H = 32.4812*10**(-6) 
-        # Exp = self.image_gen.settings['exposure_time'] # in s
-        # frame_rate = 1/(V/2*H+Exp+10*H) # maximum frame rate for external trigger
-        # print('Debugging: Maximum frame rate for ROI (',self.image_gen.subarrayv.val, self.image_gen.subarrayh.val, ') and acquisition time', Exp, 'is',  frame_rate, 'Hz')
+        elif W<=2900 and W>2600:
+            a = 1.089e+05
+            b = -42.89
+            c = -0.969
 
-        # self.stage.settings['velocity']=self.settings['step']*10**(-3)/(4*Exp) # in mm/s
-        # print('Debugging: Chosen motor velocity:', self.stage.settings['velocity'], 'mm/s')
-        # print('Debugging: required frame rate:', 1/(self.settings['step']*10**(-3)/self.stage.settings['velocity']), 'Hz')
+        elif W<=2600 and W>=1:
+            a = 1.085e+05
+            b = -43.19
+            c = 4.604
 
-        # if 1/(self.settings['step']*10**(-3)/self.stage.settings['velocity']) > 0.85*frame_rate: # empirical threshold 
-        #     print('Warning: the selected motor
-        #  velocity is too high for the current camera settings')
-        #     print('Maximum motor velocity for current camera settings is ', self.settings['step']*10**(-3)*frame_rate, 'mm/s')
-        #     self.stage.settings['velocity'] = 0.75*self.settings['step']*10**(-3)*frame_rate #empirical threshold
+
+        readout = 1/(a/(H-b) + c) #processing time for the specified ROI
+        frame_rate = 1/(Exp+readout) # maximum frame rate for internal trigger
+
+        print('Debugging: Maximum frame rate for ROI (',self.image_gen.subarrayv.val, self.image_gen.subarrayh.val, ') and acquisition time', Exp, 'is',  frame_rate, 'Hz')
+
+        self.stage.settings['velocity']=self.settings['step']*10**(-3)/(4*Exp) # in mm/s
+        print('Debugging: Chosen motor velocity:', self.stage.settings['velocity'], 'mm/s')
+        print('Debugging: required frame rate:', 1/(self.settings['step']*10**(-3)/self.stage.settings['velocity']), 'Hz')
+
+        if 1/(self.settings['step']*10**(-3)/self.stage.settings['velocity']) > 0.85*frame_rate: # empirical threshold 
+            print('Warning: the selected motor velocity is too high for the current camera settings')
+            print('Maximum motor velocity for current camera settings is ', self.settings['step']*10**(-3)*frame_rate, 'mm/s')
+            self.stage.settings['velocity'] = 0.75*self.settings['step']*10**(-3)*frame_rate #empirical threshold
             
-        # self.stage.read_from_hardware()
+        self.stage.read_from_hardware()
            
 
                 
