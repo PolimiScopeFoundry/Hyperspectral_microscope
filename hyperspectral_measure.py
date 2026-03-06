@@ -108,9 +108,9 @@ class hyperMeasure(Measurement):
             caption="Select position file",
             directory="",
             filter="Text files (*.txt);;CSV files (*.csv);;All files (*)"
-        )
+            )
 
-        if filename:
+          if filename:
             print("Selected file:", filename)
             self.target_pos = np.loadtxt(filename, dtype=float, ndmin=2)[:,0] # load only the first column of the file
             print('Debugging: Loaded positions:', self.target_pos)
@@ -186,15 +186,16 @@ class hyperMeasure(Measurement):
             self.stage.motor.move_absolute(starting_pos)
             self.stage.motor.wait_on_target()
             print('Debugging: Initial motor position:', self.stage.motor.get_position())
-            if self.settings.load_positions.val: # if the user loaded a position file, use the positions in the file 
+            if self.settings.Load_positions.val: # if the user loaded a position file, use the positions in the file 
                 target_pos = self.target_pos
+                step_num = len(target_pos) # number of acquired frames equals the number of positions in the file
             else: #otherwise, calculate the target positions based on the starting position and step size
                 target_pos = np.arange(self.starting_pos, starting_pos + step_num * step, step)
         
             for frame_idx in range(step_num):
             
                 current_pos = self.stage.motor.get_position()
-                print(f'Position at acquisition {frame_idx}:', current_pos)
+                # print(f'Position at acquisition {frame_idx}:', current_pos)
                 self.image_gen.cam.acq_start_seq(1)
                 self.frame_index = frame_idx    
                 self.img = self.image_gen.cam.get_nparray()        
