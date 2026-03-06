@@ -30,7 +30,7 @@ class hyperMeasure(Measurement):
         self.settings.New('start_pos', dtype=float, unit='mm', initial=2.3, spinbox_decimals=4) 
         self.settings.New('step', dtype=float, unit='um', initial=40, spinbox_decimals=2) 
         self.settings.New('step_num', dtype=int, initial=50, vmin = 1) 
-        self.settings.New('Load positions', dtype=bool, initial=False)
+        self.settings.New('Load_positions', dtype=bool, initial=False)
         self.settings.New('motor_velocity', dtype = float, initial=0.125, unit='mm/s', spinbox_decimals=3)
         # self.add_operation('measure', self.measure)
         self.settings.New('camera_trigger', dtype=str, ro=0, choices = ['Internal', 'Edge', 'Trigger First', 'Software Trigger Edge', 'Software Trigger First'], initial = 'Internal')
@@ -73,7 +73,7 @@ class hyperMeasure(Measurement):
         self.settings.level_max.connect_to_widget(self.ui.max_doubleSpinBox)
         self.settings.posx.connect_to_widget(self.ui.posX)
         self.settings.posy.connect_to_widget(self.ui.posY)
-        self.settings.load_positions.add_listener(self.load_positions)
+        self.settings.Load_positions.add_listener(self.load_positions)
   
         # Set up pyqtgraph graph_layout in the UI
         self.imv = pg.ImageView()
@@ -102,8 +102,8 @@ class hyperMeasure(Measurement):
         self.intensity = []
 
     def load_positions(self):
-        if self.settings.load_positions.val:
-          filename, _ = self.QFileDialog.getOpenFileName(
+        if self.settings.Load_positions.val:
+          filename, _ = QFileDialog.getOpenFileName(
             parent=self.ui,
             caption="Select position file",
             directory="",
@@ -112,11 +112,12 @@ class hyperMeasure(Measurement):
 
         if filename:
             print("Selected file:", filename)
-            self.target_pos = np.loadtxt(filename)[:,0] # load only the first column of the file
+            self.target_pos = np.loadtxt(filename, dtype=float, ndmin=2)[:,0] # load only the first column of the file
+            print('Debugging: Loaded positions:', self.target_pos)
 
         else:
             # user cancelled → uncheck checkbox
-            self.settings.load_positions.update_value(False)
+            self.settings.Load_positions.update_value(False)
         
         
     def update_display(self):
