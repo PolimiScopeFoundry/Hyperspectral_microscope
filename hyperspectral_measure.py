@@ -8,6 +8,7 @@ from ScopeFoundry import Measurement
 from ScopeFoundry.helper_funcs import sibling_path, load_qt_ui_file
 from ScopeFoundry import h5_io
 import pyqtgraph as pg
+from qtpy.QtWidgets import QFileDialog
 import numpy as np
 import os, time
 
@@ -29,6 +30,7 @@ class hyperMeasure(Measurement):
         self.settings.New('start_pos', dtype=float, unit='mm', initial=2.3, spinbox_decimals=4) 
         self.settings.New('step', dtype=float, unit='um', initial=40, spinbox_decimals=2) 
         self.settings.New('step_num', dtype=int, initial=50, vmin = 1) 
+        self.settings.New('Load positions', dtype=bool, initial=False)
         self.settings.New('motor_velocity', dtype = float, initial=0.125, unit='mm/s', spinbox_decimals=3)
         # self.add_operation('measure', self.measure)
         self.settings.New('camera_trigger', dtype=str, ro=0, choices = ['Internal', 'Edge', 'Trigger First', 'Software Trigger Edge', 'Software Trigger First'], initial = 'Internal')
@@ -71,6 +73,7 @@ class hyperMeasure(Measurement):
         self.settings.level_max.connect_to_widget(self.ui.max_doubleSpinBox)
         self.settings.posx.connect_to_widget(self.ui.posX)
         self.settings.posy.connect_to_widget(self.ui.posY)
+        self.settings.load_positions.add_listener(self.load_positions)
   
         # Set up pyqtgraph graph_layout in the UI
         self.imv = pg.ImageView()
@@ -98,6 +101,22 @@ class hyperMeasure(Measurement):
         self.time = []
         self.intensity = []
 
+    def load_positions(self):
+        if self.settings.load_positions.val:
+          filename, _ = self.QFileDialog.getOpenFileName(
+            parent=self.ui,
+            caption="Select position file",
+            directory="",
+            filter="Text files (*.txt);;CSV files (*.csv);;All files (*)"
+        )
+
+        if filename:
+            print("Selected file:", filename)
+            self.target_pos = np.loadtxt(filename)[:,0] # load only the first column of the file
+
+        else:
+            # user cancelled → uncheck checkbox
+            self.settings.load_positions.update_value(False)
         
         
     def update_display(self):
@@ -166,7 +185,10 @@ class hyperMeasure(Measurement):
             self.stage.motor.move_absolute(starting_pos)
             self.stage.motor.wait_on_target()
             print('Debugging: Initial motor position:', self.stage.motor.get_position())
-
+            if self.settings.load_positions.val: # if the user loaded a position file, use the positions in the file 
+                target_pos = self.target_pos
+            else: #otherwise, calculate the target positions based on the starting position and step size
+                target_pos = np.arange(self.starting_pos, starting_pos + step_num * step, step)
         
             for frame_idx in range(step_num):
             
@@ -189,8 +211,7 @@ class hyperMeasure(Measurement):
                     break
                 
                 if frame_idx < step_num-1: # does not make a step after the last acquisition
-                    target_pos = starting_pos + (frame_idx+1) * step
-                    self.stage.motor.move_absolute(target_pos) 
+                    self.stage.motor.move_absolute(target_pos[frame_idx]) 
                     self.stage.motor.wait_on_target()
                     
 
