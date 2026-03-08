@@ -174,7 +174,7 @@ class hyperMeasure(Measurement):
         first_frame_acquired = False
         step_num  = self.settings.step_num.val # number of acquired frames equals the number of motor steps
         step = self.settings.step.val /1000 # step is in um
-        self.starting_pos = starting_pos = self.settings.start_pos.val
+        starting_pos = self.settings.start_pos.val # starting position in mm
 
         self.stage.motor.set_velocity(5) # high velocity for fast movement toward initial position
         print('Debugging: Motor velocity:', self.stage.motor.get_velocity(), 'mm/s')
@@ -189,10 +189,17 @@ class hyperMeasure(Measurement):
             if self.settings.Load_positions.val: # if the user loaded a position file, use the positions in the file 
                 target_pos = self.target_pos
                 step_num = len(target_pos) # number of acquired frames equals the number of positions in the file
+                self.settings.step_num.val = step_num
+                starting_pos = target_pos[0] # move to the first position in the file
             else: #otherwise, calculate the target positions based on the starting position and step size
-                target_pos = np.arange(self.starting_pos, starting_pos + step_num * step, step)
+                target_pos = np.arange(starting_pos, starting_pos + step_num * step, step) 
+                #final position starting_pos + step_num * step is not included in the target positions, 
+                # but number of steps is equal to step_num 
         
             for frame_idx in range(step_num):
+
+                self.stage.motor.move_absolute(target_pos[frame_idx]) 
+                self.stage.motor.wait_on_target()
             
                 current_pos = self.stage.motor.get_position()
                 # print(f'Position at acquisition {frame_idx}:', current_pos)
@@ -211,11 +218,7 @@ class hyperMeasure(Measurement):
                 
                 if self.interrupt_measurement_called:
                     break
-                
-                if frame_idx < step_num-1: # does not make a step after the last acquisition
-                    self.stage.motor.move_absolute(target_pos[frame_idx]) 
-                    self.stage.motor.wait_on_target()
-                    
+            
 
                 self.stage.read_from_hardware()
 
