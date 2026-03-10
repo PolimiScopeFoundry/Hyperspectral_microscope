@@ -183,9 +183,6 @@ class hyperMeasure(Measurement):
             self.image_gen.settings['trigger_mode'] = 'Internal Trigger' 
             self.image_gen.settings['number_frames'] = 1 #1-frame sequence acquisition
 
-            self.stage.motor.move_absolute(starting_pos)
-            self.stage.motor.wait_on_target()
-            print('Debugging: Initial motor position:', self.stage.motor.get_position())
             if self.settings.Load_positions.val: # if the user loaded a position file, use the positions in the file 
                 target_pos = self.target_pos
                 step_num = len(target_pos) # number of acquired frames equals the number of positions in the file
