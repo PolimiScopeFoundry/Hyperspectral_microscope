@@ -8,6 +8,7 @@ from ScopeFoundry import Measurement
 from ScopeFoundry.helper_funcs import sibling_path, load_qt_ui_file
 from ScopeFoundry import h5_io
 import pyqtgraph as pg
+from qtpy.QtWidgets import QFileDialog
 import numpy as np
 import os, time
 
@@ -45,6 +46,7 @@ class hyperMeasure(Measurement):
         self.settings.New('refresh_period',dtype = float, unit ='s', spinbox_decimals = 3, initial = 0.05, vmin = 0)        
         self.settings.New('posx', dtype=int, initial=800)       
         self.settings.New('posy', dtype=int, initial=600)
+        self.settings.New('load_pos', dtype = bool, initial = False)
         
         self.image_gen = self.app.hardware['QImaginghw'] 
         self.stage = self.app.hardware['PI_HW'] 
@@ -67,7 +69,8 @@ class hyperMeasure(Measurement):
         self.settings.level_min.connect_to_widget(self.ui.min_doubleSpinBox) 
         self.settings.level_max.connect_to_widget(self.ui.max_doubleSpinBox) 
         self.settings.posx.connect_to_widget(self.ui.posX)
-        self.settings.posy.connect_to_widget(self.ui.posY)   
+        self.settings.posy.connect_to_widget(self.ui.posY) 
+        self.settings.Load_positions.add_listener(self.load_positions) 
 
         # Set up pyqtgraph graph_layout in the UI
         self.imv = pg.ImageView()
@@ -87,7 +90,23 @@ class hyperMeasure(Measurement):
         self.time = []
         self.intensity = []
         
+    def load_positions(self):
+            if self.settings.Load_positions.val:
+                filename, _ = QFileDialog.getOpenFileName(
+                parent=self.ui,
+                caption="Select position file",
+                directory="",
+                filter="Text files (*.txt);;CSV files (*.csv);;All files (*)"
+                )
 
+            if filename:
+                print("Selected file:", filename)
+                self.target_pos = np.loadtxt(filename, dtype=float, ndmin=2)[:,0] # load only the first column of the file
+                print('Debugging: Loaded positions:', self.target_pos)
+
+            else:
+                # user cancelled → uncheck checkbox
+                self.settings.Load_positions.update_value(False)
 
     def update_display(self):
         """
@@ -148,13 +167,25 @@ class hyperMeasure(Measurement):
         step = self.settings.step.val /1000 # step is in um
     
         self.stage.motor.set_velocity(5)
-        self.stage.motor.move_absolute(starting_pos)
-        self.stage.motor.wait_on_target()
+        print('Debugging: Motor velocity:', self.stage.motor.get_velocity(), 'mm/s')
         
+        if self.settings.Load_positions.val: # if the user loaded a position file, use the positions in the file 
+            target_pos = self.target_pos
+            step_num = len(target_pos) # number of acquired frames equals the number of positions in the file
+            self.settings.step_num.val = step_num
+            starting_pos = target_pos[0] # move to the first position in the file
+        else: #otherwise, calculate the target positions based on the starting position and step size
+            target_pos = np.arange(starting_pos, starting_pos + step_num * step, step) 
+            #final position starting_pos + step_num * step is not included in the target positions, 
+            # but number of steps is equal to step_num 
+
         for frame_idx in range(frame_num):
+
+            self.stage.motor.move_absolute(target_pos[frame_idx]) 
+            self.stage.motor.wait_on_target()
             
             current_pos = self.stage.motor.get_position()
-            print(f'Position at acquisition {frame_idx}:', current_pos)
+            # print(f'Position at acquisition {frame_idx}:', current_pos)
             self.image_gen.camera.acq_start()
             self.frame_index = frame_idx    
             self.img = self.image_gen.camera.get_nparray()
@@ -171,12 +202,6 @@ class hyperMeasure(Measurement):
             if self.interrupt_measurement_called:
                 break
             
-            if frame_idx < frame_num-1: # does not make a step after the last acquisition
-                target_pos = starting_pos + (frame_idx+1) * step
-                self.stage.motor.move_absolute(target_pos) 
-                self.stage.motor.wait_on_target()
-                
-
             self.stage.read_from_hardware()
                   
             
